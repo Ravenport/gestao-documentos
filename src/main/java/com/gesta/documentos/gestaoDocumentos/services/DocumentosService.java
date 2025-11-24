@@ -11,6 +11,7 @@ import com.gesta.documentos.gestaoDocumentos.vo.DocumentoResponseVO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,11 +26,13 @@ import java.util.Objects;
 public class DocumentosService {
     private final DocumentosRepository documentosRepository;
     private final Path localDeArmazenamento;
+    private final RestTemplate restTemplate;
 
     @Autowired
-    public DocumentosService(DocumentosRepository documentosRepository, ConfiguracaoArmazenamentoArquivos configuracao) {
+    public DocumentosService(DocumentosRepository documentosRepository, ConfiguracaoArmazenamentoArquivos configuracao, RestTemplate restTemplate) {
         this.documentosRepository = documentosRepository;
         this.localDeArmazenamento = Paths.get(configuracao.getUploadDir()).toAbsolutePath().normalize();
+        this.restTemplate = restTemplate;
 
         try {
             Files.createDirectories(localDeArmazenamento);
@@ -38,7 +41,7 @@ public class DocumentosService {
         }
     }
 
-    public void create(DocumentoFormVO documento) {
+    public Documento create(DocumentoFormVO documento) {
         String nomeArquivo = StringUtils.cleanPath(documento.getFile().getOriginalFilename());
 
         try {
@@ -50,7 +53,7 @@ public class DocumentosService {
             Files.copy(documento.getFile().getInputStream(), localDoArquivo, StandardCopyOption.REPLACE_EXISTING);
 
             Documento documentoParaSalvarBanco = new Documento(
-                    documento.getIdPortadorDocumento(),
+                    documento.getIdPortador(),
                     nomeArquivo,
                     documento.getDescricao(),
                     documento.getMimeType(),
@@ -59,7 +62,10 @@ public class DocumentosService {
                     documento.getVencimento()
             );
 
-            documentosRepository.save(documentoParaSalvarBanco);
+            documentoParaSalvarBanco.setStatus(validarDocumento(documentoParaSalvarBanco));
+
+            documentosRepository.saveAndFlush(documentoParaSalvarBanco);
+            return documentoParaSalvarBanco;
         } catch (Exception e) {
             throw new ArmazenamentoArquivoException("Impossivel armazenar o arquivo: " + nomeArquivo, e);
         }
@@ -73,7 +79,7 @@ public class DocumentosService {
         }
 
         return new DocumentoResponseVO(
-                documento.getIdPortadorDocumento(),
+                documento.getIdPortador(),
                 documento.getNome(),
                 documento.getDescricao(),
                 documento.getMimeType(),
@@ -83,12 +89,12 @@ public class DocumentosService {
         );
     }
 
-    public List<DocumentoResponseVO> getAll() {
+    public List<DocumentoResponseVO> getAll(Long idPortador) {
         List<DocumentoResponseVO> documentos = new ArrayList<>();
 
-        documentosRepository.findAll().forEach(documento -> documentos.add(
+        documentosRepository.findAllByIdPortador(idPortador).forEach(documento -> documentos.add(
             new DocumentoResponseVO(
-                    documento.getIdPortadorDocumento(),
+                    documento.getIdPortador(),
                     documento.getNome(),
                     documento.getDescricao(),
                     documento.getMimeType(),
@@ -101,7 +107,25 @@ public class DocumentosService {
         return documentos;
     }
 
-    public void delete(long id) {
+    public List<DocumentoResponseVO> getAll() {
+        List<DocumentoResponseVO> documentos = new ArrayList<>();
+
+        documentosRepository.findAll().forEach(documento -> documentos.add(
+                new DocumentoResponseVO(
+                        documento.getIdPortador(),
+                        documento.getNome(),
+                        documento.getDescricao(),
+                        documento.getMimeType(),
+                        documento.getCaminho(),
+                        documento.getStatus(),
+                        documento.getDataVencimento()
+                )
+        ));
+
+        return documentos;
+    }
+
+    public Documento delete(long id) {
         Documento documento = documentosRepository.findById(id).orElse(null);
 
         if(documento == null) {
@@ -110,9 +134,12 @@ public class DocumentosService {
 
         Objects.requireNonNull(documento).setStatus(StatusDocumento.DESATIVADO);
         documentosRepository.save(documento);
+        return documento;
     }
 
-    public DocumentoResponseVO updateStatusDocumento(Documento documento) {
+    public Documento updateStatusDocumento(Long documentoId) {
+        Documento documento = documentosRepository.findById(documentoId).orElse(null);
+
         if(documento == null) {
             throw new ArquivoNaoEncontradoException("O arquivo nao pode ser atualizado, pois, nao existe!");
         }
@@ -120,15 +147,7 @@ public class DocumentosService {
         documento.setStatus(validarDocumento(documento));
         documentosRepository.save(documento);
 
-        return new DocumentoResponseVO(
-            documento.getIdPortadorDocumento(),
-            documento.getNome(),
-            documento.getDescricao(),
-            documento.getMimeType(),
-            documento.getCaminho(),
-            documento.getStatus(),
-            documento.getDataVencimento()
-        );
+        return documento;
     }
 
     public StatusDocumento validarDocumento(Documento documento) {
