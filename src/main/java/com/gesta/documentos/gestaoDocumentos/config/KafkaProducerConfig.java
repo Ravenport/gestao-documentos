@@ -1,5 +1,7 @@
 package com.gesta.documentos.gestaoDocumentos.config;
 
+import com.gesta.documentos.gestaoDocumentos.models.events.GestaoDocumentoEvent;
+import com.gesta.documentos.gestaoDocumentos.serializers.DocumentosSerializer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,19 +24,19 @@ public class KafkaProducerConfig {
         HashMap<String, Object> props = new HashMap<>();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, DocumentosSerializer.class);
 
         return props;
     }
 
     @Bean
-    public ProducerFactory<String, String> producerFactory() {
+    public ProducerFactory<String, GestaoDocumentoEvent> producerFactory() {
         return new DefaultKafkaProducerFactory<>(producerConfigs());
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate(
-            ProducerFactory<String, String> producerFactory
+    public KafkaTemplate<String, GestaoDocumentoEvent> kafkaTemplate(
+            ProducerFactory<String, GestaoDocumentoEvent> producerFactory
     ) {
         return new KafkaTemplate<>(producerFactory);
     }

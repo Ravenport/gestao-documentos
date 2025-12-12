@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gestao-documentos-deploy
+  labels:
+    app: gestao-documentos-app
+spec:
+  selector:
+    matchLabels:
+      app: gestao-documentos-app
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: gestao-documentos-app
+    spec:
+      containers:
+        - name: backend-container
+          image: liferanker/gestao-documentos-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gestao-documentos-service
+spec:
+  selector:
+    app: gestao-documentos-app
+  type:
+    NodePort
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082

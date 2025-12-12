@@ -26,13 +26,11 @@ import java.util.Objects;
 public class DocumentosService {
     private final DocumentosRepository documentosRepository;
     private final Path localDeArmazenamento;
-    private final RestTemplate restTemplate;
 
     @Autowired
-    public DocumentosService(DocumentosRepository documentosRepository, ConfiguracaoArmazenamentoArquivos configuracao, RestTemplate restTemplate) {
+    public DocumentosService(DocumentosRepository documentosRepository, ConfiguracaoArmazenamentoArquivos configuracao) {
         this.documentosRepository = documentosRepository;
         this.localDeArmazenamento = Paths.get(configuracao.getUploadDir()).toAbsolutePath().normalize();
-        this.restTemplate = restTemplate;
 
         try {
             Files.createDirectories(localDeArmazenamento);

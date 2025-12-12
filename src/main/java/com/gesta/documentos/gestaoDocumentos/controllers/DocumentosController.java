@@ -2,7 +2,7 @@ package com.gesta.documentos.gestaoDocumentos.controllers;
 
 import com.gesta.documentos.gestaoDocumentos.exceptions.ArmazenamentoArquivoException;
 import com.gesta.documentos.gestaoDocumentos.models.Documento;
-import com.gesta.documentos.gestaoDocumentos.models.enums.StatusDocumento;
+import com.gesta.documentos.gestaoDocumentos.models.enums.DocumentosTipoEvento;
 import com.gesta.documentos.gestaoDocumentos.models.events.GestaoDocumentoEvent;
 import com.gesta.documentos.gestaoDocumentos.vo.DocumentoFormVO;
 import com.gesta.documentos.gestaoDocumentos.services.DocumentosService;
@@ -18,9 +18,9 @@ import java.util.List;
 @RequestMapping("api/documentos")
 public class DocumentosController {
     private final DocumentosService documentoService;
-    private final KafkaTemplate<String, String> kafkaTemplate;
+    private final KafkaTemplate<String, GestaoDocumentoEvent> kafkaTemplate;
 
-    public DocumentosController(DocumentosService documentoService, KafkaTemplate<String, String> kafkaTemplate) {
+    public DocumentosController(DocumentosService documentoService, KafkaTemplate<String, GestaoDocumentoEvent> kafkaTemplate) {
         this.documentoService = documentoService;
         this.kafkaTemplate = kafkaTemplate;
     }
@@ -30,8 +30,8 @@ public class DocumentosController {
         try {
             Documento documentoSalvo = documentoService.create(documento);
 
-            GestaoDocumentoEvent evento = new GestaoDocumentoEvent(documentoSalvo.getId(), documentoSalvo.getIdPortador(), documentoSalvo.getNome(), documentoSalvo.getStatus());
-            kafkaTemplate.send("gestaoDocumentos", evento.toString());
+            GestaoDocumentoEvent evento = new GestaoDocumentoEvent(DocumentosTipoEvento.CRIADO, documentoSalvo.getId(), documentoSalvo.getIdPortador(), documentoSalvo.getNome(), documentoSalvo.getStatus());
+            kafkaTemplate.send("gestaoDocumentos", evento);
 
             return ResponseEntity.ok("Documento criado com sucesso!");
         } catch (Exception e) {
@@ -69,8 +69,8 @@ public class DocumentosController {
     public ResponseEntity<String> updateDocumento(@PathVariable Long documentoId) {
         Documento documentoAtualizado = documentoService.updateStatusDocumento(documentoId);
 
-        GestaoDocumentoEvent evento = new GestaoDocumentoEvent(documentoAtualizado.getId(), documentoAtualizado.getIdPortador(), documentoAtualizado.getNome(), documentoAtualizado.getStatus());
-        kafkaTemplate.send("gestaoDocumentos", evento.toString());
+        GestaoDocumentoEvent evento = new GestaoDocumentoEvent(DocumentosTipoEvento.ATUALIZADO, documentoAtualizado.getId(), documentoAtualizado.getIdPortador(), documentoAtualizado.getNome(), documentoAtualizado.getStatus());
+        kafkaTemplate.send("gestaoDocumentos", evento);
 
         return ResponseEntity.ok("Documento atualizado para o status: " + documentoAtualizado.getStatus().toString());
     }
@@ -79,8 +79,8 @@ public class DocumentosController {
     public ResponseEntity<String> deleteDocumento(@PathVariable long documentosId) {
         Documento documentoDeletado = documentoService.delete(documentosId);
 
-        GestaoDocumentoEvent evento = new GestaoDocumentoEvent(documentoDeletado.getId(), documentoDeletado.getIdPortador(), documentoDeletado.getNome(), documentoDeletado.getStatus());
-        kafkaTemplate.send("gestaoDocumentos", evento.toString());
+        GestaoDocumentoEvent evento = new GestaoDocumentoEvent(DocumentosTipoEvento.EXCLUIDO, documentoDeletado.getId(), documentoDeletado.getIdPortador(), documentoDeletado.getNome(), documentoDeletado.getStatus());
+        kafkaTemplate.send("gestaoDocumentos", evento);
 
         return ResponseEntity.ok("Documento deletado com sucesso!");
     }
